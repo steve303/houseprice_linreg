@@ -1,0 +1,35 @@
+---
+title: "houseprice_linreg"
+author: "ss"
+date: "July 15, 2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+df_hse = read.csv('kc_house_data.csv')
+df_hse = df_hse[ ,-(1:2)] #remove id and date from dataframe
+num_NAs = sum(is.na(df_hse)) #check how many NAs in dataset
+num_NAs
+str(df_hse)
+```
+
+```{r}
+head(df_hse)
+```
+
+```{r}
+pairs(df_hse[ , 1:7])
+```
+```{r}
+pairs(df_hse[ , c(1,8:13)])
+```
+
+```{r}
+pairs(df_hse[ , c(1,14:19)])
+```
+
+
