@@ -1,0 +1,26 @@
+---
+title: "House Price Modeling in King County, WA"
+author: "Steve Su, Pierson Wodarz"
+date: "7/20/2020"
+output:
+  html_document: 
+    theme: readable
+    toc: yes  
+  pdf_document: default
+---
+
+```{r setup, echo = FALSE, message = FALSE, warning = FALSE}
+options(scipen = 1, digits = 4, width = 80)
+library(knitr)
+opts_chunk$set(cache = TRUE, autodep = TRUE)
+```
+
+## Introduction
+
+## Methods
+
+## Results
+
+## Discussion
+
+## Appendix

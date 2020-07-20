@@ -1,0 +1,32 @@
+---
+title: "House Price Prediction - King County, WA"
+date: "July 20, 2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Contributors
+Steve Su and Pierson Wodarz
+
+## Project Title
+House Price Modeling in King County, WA
+
+## Description of Data File
+The data was sourced from Kaggle: https://www.kaggle.com/swathiachath/kc-housesales-data. 
+
+This data set contains records of house sales in King County, WA. There are 21,597 observations and 21 variables. As our goal is to model the price of houses, we will treat the price variable as our response, and the other variables as potential predictors. These variables include numeric data types such as number of bathrooms/bedrooms, square footage of living space/basement, and number of floors. Additionally, the variables include several categorical variables such as view/no view, zipcode, and whether it is a waterfront property. 
+
+## Statement of Interest
+
+Pierson has been considering a move to Seattle for several years due to having family living there. Using the model formed from this data he would be able to judge whether a house price is reasonable compared to other similar houses, the characteristics of a house that he could expect to afford, or determine that Seattle is entirely too expensive for him.   
+
+## Loading Data
+
+```{r}
+df_hse = read.csv('kc_house_data.csv')
+head(df_hse)
+```
+

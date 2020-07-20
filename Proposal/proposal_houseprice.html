@@ -9,9 +9,8 @@
 <meta http-equiv="X-UA-Compatible" content="IE=EDGE" />
 
 
-<meta name="author" content="Steve Su, Pierson Wodarz" />
 
-<meta name="date" content="2020-07-17" />
+<meta name="date" content="2020-07-20" />
 
 <title>House Price Prediction - King County, WA</title>
 
@@ -364,16 +363,30 @@ summary {
 
 
 <h1 class="title toc-ignore">House Price Prediction - King County, WA</h1>
-<h4 class="author">Steve Su, Pierson Wodarz</h4>
-<h4 class="date">July 17, 2020</h4>
+<h4 class="date">July 20, 2020</h4>
 
 </div>
 
 
+<div id="contributors" class="section level2">
+<h2>Contributors</h2>
+<p>Steve Su and Pierson Wodarz</p>
+</div>
+<div id="project-title" class="section level2">
+<h2>Project Title</h2>
+<p>House Price Modeling in King County, WA</p>
+</div>
 <div id="description-of-data-file" class="section level2">
-<h2>Description of data file</h2>
-<p>This data set contains variables which can used to predict the prices of houses in King County, WA. Examples of predictors include, number of bathrooms/bedrooms, square footage of living space/basement, and number of floors which are all numberic data types. This data set also contains several categorical variables which include, view/no view, zipcode, and waterfront property. All together there are roughly 20 predictors with 21500 observations. The response is house price. The data source was from Kaggle, <a href="https://www.kaggle.com/swathiachath/kc-housesales-data" class="uri">https://www.kaggle.com/swathiachath/kc-housesales-data</a>.</p>
-<p>Price prediction is important in many fields but can be subjective espcially in real estate. Having a model that can predict prices objectly would be benefical between sellers and buyers….?</p>
+<h2>Description of Data File</h2>
+<p>The data was sourced from Kaggle: <a href="https://www.kaggle.com/swathiachath/kc-housesales-data" class="uri">https://www.kaggle.com/swathiachath/kc-housesales-data</a>.</p>
+<p>This data set contains records of house sales in King County, WA. There are 21,597 observations and 21 variables. As our goal is to model the price of houses, we will treat the price variable as our response, and the other variables as potential predictors. These variables include numeric data types such as number of bathrooms/bedrooms, square footage of living space/basement, and number of floors. Additionally, the variables include several categorical variables such as view/no view, zipcode, and whether it is a waterfront property.</p>
+</div>
+<div id="statement-of-interest" class="section level2">
+<h2>Statement of Interest</h2>
+<p>Pierson has been considering a move to Seattle for several years due to having family living there. Using the model formed from this data he would be able to judge whether a house price is reasonable compared to other similar houses, the characteristics of a house that he could expect to afford, or determine that Seattle is entirely too expensive for him.</p>
+</div>
+<div id="loading-data" class="section level2">
+<h2>Loading Data</h2>
 <pre class="r"><code>df_hse = read.csv('kc_house_data.csv')
 head(df_hse)</code></pre>
 <pre><code>##           id       date   price bedrooms bathrooms sqft_living sqft_lot floors
