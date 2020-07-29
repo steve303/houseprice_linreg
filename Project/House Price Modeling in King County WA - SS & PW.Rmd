@@ -36,8 +36,6 @@ house_tst = house_data[-house_idx, ]
 ```
 
 
-
-
 ## Results
 
 ## Discussion
