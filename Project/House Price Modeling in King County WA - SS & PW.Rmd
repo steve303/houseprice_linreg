@@ -16,8 +16,26 @@ opts_chunk$set(cache = TRUE, autodep = TRUE)
 ```
 
 ## Introduction
+In this study we will investigate sales data for houses in King County, WA (which includes Seattle) sold between May 2014 and May 2015. In particular, we are concerned with the sales prices of these homes and identifying the factors contributing to the sale price such that it becomes possible to predict the price of a given house. 
+
+This is useful to the authors as it can be used for personal decisions when moving to Seattle and purchasing a home. Additionally, it allows the authors to validate or compare to other listed estimates and prices, such as the list price of the home or estimates like the Zillow Zestimate or Redfin Estimate. For example, [Zillow's CEO sold his home for less than 40% of the Zillow estimate](https://www.geekwire.com/2016/zillow-ceo-spencer-rascoff-sold-home-40-less-zestimate-1-75-million/), underscoring the importance of accurate predictions and the potential for improvement in existing systems. Finally, even if the numerical values for the predictors are no longer valid, this study will allow the authors to identify an appropriate form of the model that can be trained on more recent data (house prices may have risen over the previous years, for example).
+
+The data for this study was sourced from [Kaggle](https://www.kaggle.com/swathiachath/kc-housesales-data). The data set contains records of house sales in King County, WA, with a total of 21,597 observations and 21 variables. As our goal is to model the price of houses, we will treat the price variable as our response, and the other variables as potential predictors. These variables include numeric data types such as number of bathrooms/bedrooms, square footage of living space/basement, and number of floors. Additionally, the predictor variables include several categorical variables such as view/no view, zipcode, and whether it is a waterfront property.
+
+In this study we will utilize several regression methods for modeling the data. 
 
 ## Methods
+First, we load the data stored in [`kc_house_data.csv`](`kc_house_data.csv`) for the values of the predictors and the response. Immediately, we split this into a training data set (80%) and a testing data set (20%).
+```{r message=FALSE, warning=FALSE}
+library(readr)
+house_data = read_csv("kc_house_data.csv")
+set.seed(19940627)
+house_idx = sample(nrow(house_data), as.integer(nrow(house_data) * 0.80))
+house_trn = house_data[house_idx, ]
+house_tst = house_data[-house_idx, ]
+```
+
+
 
 ## Results
 
