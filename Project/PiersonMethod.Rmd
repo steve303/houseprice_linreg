@@ -1,0 +1,22 @@
+---
+title: "Pierson Method"
+author: "Pierson Wodarz"
+date: "7/29/2020"
+output: html_document
+---
+
+```{r setup, echo = FALSE, message = FALSE, warning = FALSE}
+options(scipen = 1, digits = 4, width = 80)
+library(knitr)
+opts_chunk$set(cache = TRUE, autodep = TRUE)
+```
+
+
+```{r message=FALSE, warning=FALSE}
+library(readr)
+house_data = read_csv("kc_house_data.csv")
+set.seed(19940627)
+house_idx = sample(nrow(house_data), as.integer(nrow(house_data) * 0.80))
+house_trn = house_data[house_idx, ]
+house_tst = house_data[-house_idx, ]
+```
