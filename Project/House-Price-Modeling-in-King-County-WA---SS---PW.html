@@ -399,7 +399,7 @@ summary {
 </div>
 <div id="methods" class="section level2">
 <h2>Methods</h2>
-<p>First, we load the data stored in <a href="%60kc_house_data.csv%60"><code>kc_house_data.csv</code></a> for the values of the predictors and the response. Immediately, we split this into a training data set (80%) and a testing data set (20%).</p>
+<p>First, we load the data stored in <a href="%60kc_house_data.csv%60"><code>kc_house_data.csv</code></a> for the values of the predictors and the response. Additionally, we randomly split this into a training data set (80% of the data) and a testing data set (20%).</p>
 <pre class="r"><code>library(readr)
 house_data = read_csv(&quot;kc_house_data.csv&quot;)
 set.seed(19940627)
