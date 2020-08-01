@@ -15,8 +15,50 @@ opts_chunk$set(cache = TRUE, autodep = TRUE)
 ```{r message=FALSE, warning=FALSE}
 library(readr)
 house_data = read_csv("kc_house_data.csv")
+house_data = na.omit(house_data)
+house_data = house_data[ ,-c(1,2,10,14)] #remove id, date and view from dataframe
+
+house_data$yr_renovated = ifelse(house_data$yr_renovated == 0, 0, 1) #change yr_rennovated to boolean data type
+i = which(house_data$bedrooms == 33) #remove outlier of 33 bedrooms
+house_data = house_data[-i, ]  #remove outlier of 33 bedrooms
+house_data$waterfront = as.factor(house_data$waterfront)
+house_data$yr_renovated = as.factor(house_data$yr_renovated)
+
 set.seed(19940627)
 house_idx = sample(nrow(house_data), as.integer(nrow(house_data) * 0.80))
 house_trn = house_data[house_idx, ]
 house_tst = house_data[-house_idx, ]
 ```
+
+```{r}
+head(house_trn)
+```
+
+```{r}
+m_add = lm(price ~ ., house_data)
+summary(m_add)
+```
+
+```{r}
+m_zip = lm(price ~ . - zipcode + as.factor(zipcode), data = house_data)
+summary(m_zip)$r.squared
+summary(m_zip)$adj.r.squared
+```
+```{r}
+m_latlong = lm(price ~ . - zipcode + as.factor(zipcode) - lat - long + I(sqrt(lat^2+long^2)), data = house_data)
+summary(m_latlong)$r.squared
+summary(m_latlong)$adj.r.squared
+```
+
+```{r}
+m_zip1 = lm(price ~ (. - zipcode + as.factor(zipcode))^2, data = house_data)
+summary(m_zip1)$r.squared
+summary(m_zip1)$adj.r.squared
+```
+```{r}
+n = nrow(house_data)
+m_zip1 = step(m_zip, direction = 'backward', k = log(n))
+summary(m_zip1)$r.squared
+summary(m_zip1)$adj.r.squared
+```
+
