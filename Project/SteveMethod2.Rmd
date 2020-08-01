@@ -1,0 +1,134 @@
+---
+title: "Steve Method"
+author: "Steve Su"
+date: "7/29/2020"
+output: html_document
+---
+
+```{r setup, echo = FALSE, message = FALSE, warning = FALSE}
+options(scipen = 1, digits = 4, width = 80)
+library(knitr)
+opts_chunk$set(cache = TRUE, autodep = TRUE)
+```
+
+
+```{r message=FALSE, warning=FALSE}
+library(readr)
+house_data = read_csv("kc_house_data.csv")
+house_data = na.omit(house_data)
+house_data = house_data[ ,-c(1,2,10,14)] #remove id, date and view from dataframe
+
+house_data$yr_renovated = ifelse(house_data$yr_renovated == 0, 0, 1) #change yr_rennovated to boolean data type
+i = which(house_data$bedrooms == 33) #remove outlier of 33 bedrooms
+house_data = house_data[-i, ]  #remove outlier of 33 bedrooms
+house_data$waterfront = as.factor(house_data$waterfront)
+house_data$yr_renovated = as.factor(house_data$yr_renovated)
+
+set.seed(19940627)
+house_idx = sample(nrow(house_data), as.integer(nrow(house_data) * 0.80))
+house_trn = house_data[house_idx, ]
+house_tst = house_data[-house_idx, ]
+```
+
+```{r}
+head(house_trn)
+```
+
+```{r}
+rmse = function(model, df) {
+  yhat = predict(model, newdata = df)
+  ytrue = df$price
+  rmse = sqrt(mean((yhat - ytrue)^2))
+  data.frame(RMSE = rmse, AdjR2 = summary(model)$adj.r.squared, N_beta = length(coef(model)))
+}
+```
+
+```{r}
+m_add = lm(price ~ ., house_trn)
+summary(m_add)
+```
+```{r}
+rmse(m_add, house_tst)
+```
+
+### backward selection chooses the full additive model - no change
+
+```{r}
+m_add2 = step(m_add, trace = 0)
+rmse(m_add2, house_tst)
+
+```
+
+### 2-way interaction of additive model has good improvement
+
+```{r}
+m_int = lm(price ~ .^2, data = house_trn)
+rmse(m_int, house_tst)
+```
+
+### 3-way interaction has an error "prediction from a rank-deficient fit may be misleading" is it because too many predictors n = 697?
+
+```{r}
+m_int = lm(price ~ .^3, data = house_trn)
+rmse(m_int, house_tst)
+```
+
+### changing zipcode to factor variable has good improvement 
+
+```{r}
+m_zip = lm(price ~ . - zipcode + as.factor(zipcode), data = house_trn)
+rmse(m_zip, house_tst)
+```
+
+### adding some squared terms seems to help
+
+```{r}
+m_zip_quad = lm(price ~ . - zipcode + as.factor(zipcode) + I(sqft_living^2) + I(bedrooms^2) + I(grade^2) + I(sqft_above^2), data = house_trn)
+rmse(m_zip_quad, house_tst)
+```
+
+### 2-way interaction with non zipcode variables also show improvement
+
+```{r}
+m_zip1 = lm(price ~ (. - zipcode + as.factor(zipcode) + (. - zipcode)^2), data = house_trn)
+
+rmse(m_zip1, house_tst)
+```
+
+### backward selection reduces number of predictors from 190 to 161, performance is same (best model so far)
+
+```{r}
+#this takes a while to run!!!
+#m_zip1 = lm(price ~ (. - zipcode + as.factor(zipcode) + (. - zipcode)^2), data = house_trn)
+#m_zip2 = step(m_zip1, trace=0)
+```
+
+```{r}
+
+#rmse(m_zip2, house_tst)
+```
+
+
+### investigate lat long - taking out lat, long has no effect compared to model: m_zip
+
+```{r}
+m_latlong = lm(price ~ . - zipcode - lat - long + as.factor(zipcode), data = house_trn)
+
+rmse(m_latlong, house_tst)
+```
+
+### try converting to something meaningful like distance - still no improvement
+
+```{r}
+m_latlong2 = lm(price ~ . - zipcode + as.factor(zipcode) - lat - long + I(sqrt(lat^2+long^2)), data = house_trn)
+rmse(m_latlong2, house_tst)
+```
+
+```{r}
+summary(m_latlong2)
+```
+
+
+
+
+
