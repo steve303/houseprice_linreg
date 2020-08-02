@@ -32,4 +32,35 @@ pairs(df_hse[ , c(1,8:13)])
 pairs(df_hse[ , c(1,14:19)])
 ```
 
+### correlation table 
 
+```{r}
+cor(df_hse)
+
+```
+
+### some high correlations greater than 0.65, many associated with sqftliving
+
+```{r}
+c = cor(df_hse)
+corr = c[c != 1]
+unique(corr[corr > 0.65])
+```
+
+
+
+### box plots of all predictors 
+
+```{r}
+par(mfrow=c(3,6))
+pred_names = colnames(df_hse)
+for (i in 2:length(pred_names)) {
+  boxplot(df_hse[ , i], main = pred_names[i])
+}
+```
+
+
+```{r}
+unique(df_hse$zipcode)
+length(unique(df_hse$zipcode))
+```
