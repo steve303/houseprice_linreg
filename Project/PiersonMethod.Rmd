@@ -14,9 +14,129 @@ opts_chunk$set(cache = TRUE, autodep = TRUE)
 
 ```{r message=FALSE, warning=FALSE}
 library(readr)
+library(faraway)
 house_data = read_csv("kc_house_data.csv")
+house_data = house_data[ ,-c(1, 2, 10)] # remove id and date from data frame as these are not relevant and view (since someone looking to buy a house may not have the information of number of views on a home)
+
+# Coerce factor variables to be factors
+house_data$yr_renovated = ifelse(house_data$yr_renovated == 0, 0, 1) #change yr_rennovated to boolean data type
+house_data$yr_renovated = as.factor(house_data$yr_renovated)
+house_data$waterfront = as.factor(house_data$waterfront)
+house_data$zipcode = as.factor(house_data$zipcode)
+
 set.seed(19940627)
 house_idx = sample(nrow(house_data), as.integer(nrow(house_data) * 0.80))
 house_trn = house_data[house_idx, ]
 house_tst = house_data[-house_idx, ]
 ```
+
+We write a function that will return various selection metrics to be used as we progress through our model building.
+```{r}
+sel_crit = function(model, data) {
+  n = nrow(data)
+  LOOCV_RMSE = sqrt(mean((resid(model) / (1 - hatvalues(model))) ^ 2))
+  RMSE =  sqrt((1 / n) * sum((predict(model, newdata = data) - data$price) ^ 2))
+  adjR2 = summary(model)$adj.r.squared
+  AIC = extractAIC(model)[2]
+  num_p = length(coef(model)) - 1
+  data.frame(LOOCV_RMSE = LOOCV_RMSE, RMSE = RMSE, adjR2 = adjR2, AIC = AIC, num_p = num_p)
+}
+```
+
+
+We observe each variables' relationship to price to orient ourselves and additionally view the correlation between variables (mostly between price and the predictor, but in some cases between predictors).
+```{r}
+pairs(house_trn[, 1:7])
+pairs(house_trn[ , c(1,8:13)])
+pairs(house_trn[ , c(1,14:18)])
+cor(house_trn[, -c(7, 13, 14)]) > 0.7
+```
+
+First, we create an additive model to provide ourselves a baseline from which to improve. Additionally, we perform backwards AIC selection to reduce the number of predictors.
+
+```{r message=FALSE, warning=FALSE}
+add_mod = lm(price ~ ., data = house_trn)
+sel_crit(add_mod, house_tst)
+
+
+add_mod_aic = step(add_mod, direction = "backward", trace = 0)
+sel_crit(add_mod_aic, house_tst)
+
+```
+
+We note that backwards AIC selection reduced our model by a single predictor, and was not particularly useful. But we established a *baseline* RMSE of `r sel_crit(add_mod_aic, house_tst)$RMSE`.
+
+Next, we try an interactive model. 
+
+```{r}
+int_mod = lm(price ~ (.) * (.), data = house_trn)
+sel_crit(int_mod, house_tst)
+```
+
+This model has a much lower RMSE (`r sel_crit(int_mod, house_tst)$RMSE`) compared to the additive model. However, the number of parameters is very high. 
+
+We note that most of these parameters are from (properly) treating zipcode as a factor. So we investigate what happens if we remove zipcode as an interaction parameter (but still have zipcode as a predictor).
+```{r}
+int_mod_no_zip = lm(price ~ (. -zipcode) * (. -zipcode) + zipcode, data = house_trn)
+sel_crit((int_mod_no_zip), house_tst)
+```
+
+We see RMSE increases (which is undesirable) by ~10% but we have 1/6 the number of parameters, which is much preferable.
+
+Try some 3-way interactions
+```{r}
+int_mod = lm(price ~ (. -zipcode ) * (. -zipcode ) * (. -zipcode ) + zipcode, data = house_trn)
+sel_crit(int_mod, house_tst)
+```
+Three-way appears to be a dead-end (at least without zipcode)
+
+We add in some polynomial terms with observations from our pairs graphs
+```{r}
+poly_mod = lm(price ~ (. -zipcode) * (. -zipcode) + zipcode + I(lat ^ 2) + I(1 / long) + I(bedrooms ^ 2) + I(bathrooms ^ 2) + I(sqft_living ^ 2) + I(1 / sqft_lot) + I(grade ^ 2) + log(condition) + I(sqft_above ^ 2), data = house_trn)
+sel_crit((poly_mod), house_tst)
+```
+
+
+Trying to remove some unnecessary parameters, take a look at correlation
+```{r}
+round(cor(house_trn[, -c(7,13,14)]),2)
+```
+Refit with highly correlated values (sqft_living: sqft_above/sqft_living15/sqft_lot15) removed
+```{r}
+poly_mod = lm(price ~ (. -zipcode - sqft_above  -sqft_lot15) * (. -zipcode - sqft_above  -sqft_lot15) + zipcode + I(lat ^ 2) + I(1 / long) + I(bedrooms ^ 2) + I(bathrooms ^ 2) + I(sqft_living ^ 2) + I(1 / sqft_lot) + log(condition), data = house_trn)
+sel_crit((poly_mod), house_tst)
+```
+
+Trying to remove some other stuff
+```{r}
+poly_mod = lm(price ~ (. -zipcode - sqft_above  -sqft_lot15) * (. -zipcode - sqft_above  -sqft_lot15) + zipcode + I(lat ^ 2) +  I(bedrooms ^ 2)  , data = house_trn)
+sel_crit((poly_mod), house_tst)
+```
+
+What if we just tried a poly and interaction model:
+```{r}
+poly_int_mod = lm(price ~ (. -zipcode - sqft_above  -sqft_lot15) * (. -zipcode - sqft_above  -sqft_lot15) + zipcode + ((. -zipcode -sqft_above  -sqft_lot15)^2),  data = house_trn)
+sel_crit((poly_int_mod), house_tst)
+```
+
+We see that there isn't much value in most polynomial terms so we remove those. Try adding an exponent for the bedrooms as it appears to have a gaussian peak. 
+```{r}
+poly_mod = lm(price ~ (. -zipcode - sqft_above  -sqft_lot15) * (. -zipcode - sqft_above  -sqft_lot15) + zipcode + I(lat ^ 2) +  I(bedrooms ^ 2)  + exp(bedrooms), data = house_trn)
+sel_crit((poly_mod), house_tst)
+```
+
+
+```{r}
+poly_mod = lm(price ~ (. -zipcode - sqft_above  -sqft_lot15) * (. -zipcode - sqft_above  -sqft_lot15) + zipcode + I(lat ^ 2) +  I(bedrooms ^ 2)  + exp(bedrooms) + I(sqft_lot ^ -1), data = house_trn)
+sel_crit((poly_mod), house_tst)
+```
+
+```{r}
+poly_mod = lm(price ~ (. -zipcode - sqft_above  -sqft_lot15 ) * (. -zipcode - sqft_above  -sqft_lot15 ) + zipcode + I(lat ^ 2) +  I(bedrooms ^ 2)  + exp(bedrooms) + I(sqft_lot ^ -1) + exp(condition), data = house_trn)
+sel_crit((poly_mod), house_tst)
+```
+
+
+
+
+
