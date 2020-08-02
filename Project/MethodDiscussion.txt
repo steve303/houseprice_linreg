@@ -1,0 +1,19 @@
+Method Discussion points
+Data pre-processing:
+- Year Renovated to boolean (because we have 0 years which doesn't make sense)
+- Removing basement (high correlation)
+
+Pre-model building:
+- Look at pairs
+- Look at correlations
+
+Model building:
+1. Try Additive
+2. Step Additive (forms baseline RMSE from which to improve)
+3. Try 2-way interactive 
+4. Try 3-way interactive (note it's a dead end -overfitting)
+5. Try 2-way interactive without zip interaction (to reduce num of predictors)
+6. Try 2-way interactive with polynomials, note not much different with all polynomial
+7. Try specific polynomials (with info from pairs graphs)
+8. AIC the result
+9. Which model is chosen

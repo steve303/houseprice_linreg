@@ -25,14 +25,35 @@ The data for this study was sourced from [Kaggle](https://www.kaggle.com/swathia
 In this study we will utilize several regression methods for modeling the data. 
 
 ## Methods
-First, we load the data stored in [`kc_house_data.csv`](`kc_house_data.csv`) for the values of the predictors and the response. Additionally, we randomly split this into a training data set (80% of the data) and a testing data set (20%).
+### Loading data
+First, we load the data stored in [`kc_house_data.csv`](`kc_house_data.csv`) for the values of the predictors and the response. .
 ```{r message=FALSE, warning=FALSE}
 library(readr)
 house_data = read_csv("kc_house_data.csv")
+```
+
+### Data Pre-Processing
+
+### Model Building
+First, we randomly split this into a training data set (80% of the data) and a testing data set (20%) to use as a selection criteria. 
+```{r}
 set.seed(19940627)
 house_idx = sample(nrow(house_data), as.integer(nrow(house_data) * 0.80))
 house_trn = house_data[house_idx, ]
 house_tst = house_data[-house_idx, ]
+```
+
+We write a function that will return various selection metrics to be used as we progress through our model building.
+```{r}
+sel_crit = function(model, data) {
+  n = nrow(data)
+  LOOCV_RMSE = sqrt(mean((resid(model) / (1 - hatvalues(model))) ^ 2))
+  RMSE =  sqrt((1 / n) * sum((predict(model, newdata = data) - data$price) ^ 2))
+  adjR2 = summary(model)$adj.r.squared
+  AIC = extractAIC(model)[2]
+  num_p = length(coef(model)) - 1
+  data.frame(LOOCV_RMSE = LOOCV_RMSE, RMSE = RMSE, adjR2 = adjR2, AIC = AIC, num_p = num_p)
+}
 ```
 
 

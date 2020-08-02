@@ -383,7 +383,11 @@ summary {
 <div id="TOC">
 <ul>
 <li><a href="#introduction">Introduction</a></li>
-<li><a href="#methods">Methods</a></li>
+<li><a href="#methods">Methods</a><ul>
+<li><a href="#loading-data">Loading data</a></li>
+<li><a href="#data-pre-processing">Data Pre-Processing</a></li>
+<li><a href="#model-building">Model Building</a></li>
+</ul></li>
 <li><a href="#results">Results</a></li>
 <li><a href="#discussion">Discussion</a></li>
 <li><a href="#appendix">Appendix</a></li>
@@ -399,13 +403,33 @@ summary {
 </div>
 <div id="methods" class="section level2">
 <h2>Methods</h2>
-<p>First, we load the data stored in <a href="%60kc_house_data.csv%60"><code>kc_house_data.csv</code></a> for the values of the predictors and the response. Additionally, we randomly split this into a training data set (80% of the data) and a testing data set (20%).</p>
+<div id="loading-data" class="section level3">
+<h3>Loading data</h3>
+<p>First, we load the data stored in <a href="%60kc_house_data.csv%60"><code>kc_house_data.csv</code></a> for the values of the predictors and the response. .</p>
 <pre class="r"><code>library(readr)
-house_data = read_csv(&quot;kc_house_data.csv&quot;)
-set.seed(19940627)
+house_data = read_csv(&quot;kc_house_data.csv&quot;)</code></pre>
+</div>
+<div id="data-pre-processing" class="section level3">
+<h3>Data Pre-Processing</h3>
+</div>
+<div id="model-building" class="section level3">
+<h3>Model Building</h3>
+<p>First, we randomly split this into a training data set (80% of the data) and a testing data set (20%) to use as a selection criteria.</p>
+<pre class="r"><code>set.seed(19940627)
 house_idx = sample(nrow(house_data), as.integer(nrow(house_data) * 0.80))
 house_trn = house_data[house_idx, ]
 house_tst = house_data[-house_idx, ]</code></pre>
+<p>We write a function that will return various selection metrics to be used as we progress through our model building.</p>
+<pre class="r"><code>sel_crit = function(model, data) {
+  n = nrow(data)
+  LOOCV_RMSE = sqrt(mean((resid(model) / (1 - hatvalues(model))) ^ 2))
+  RMSE =  sqrt((1 / n) * sum((predict(model, newdata = data) - data$price) ^ 2))
+  adjR2 = summary(model)$adj.r.squared
+  AIC = extractAIC(model)[2]
+  num_p = length(coef(model)) - 1
+  data.frame(LOOCV_RMSE = LOOCV_RMSE, RMSE = RMSE, adjR2 = adjR2, AIC = AIC, num_p = num_p)
+}</code></pre>
+</div>
 </div>
 <div id="results" class="section level2">
 <h2>Results</h2>
