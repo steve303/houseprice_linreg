@@ -1,5 +1,6 @@
 Method Discussion points
 Data pre-processing:
+- Which variables don't make sense to include (id, date, view, sqft_basement) 
 - Year Renovated to boolean (because we have 0 years which doesn't make sense)
 - Removing basement (high correlation)
 

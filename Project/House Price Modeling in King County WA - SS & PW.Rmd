@@ -34,6 +34,8 @@ house_data = read_csv("kc_house_data.csv")
 
 ### Data Pre-Processing
 
+### Initial Review of Data
+
 ### Model Building
 First, we randomly split this into a training data set (80% of the data) and a testing data set (20%) to use as a selection criteria. 
 ```{r}
@@ -41,6 +43,11 @@ set.seed(19940627)
 house_idx = sample(nrow(house_data), as.integer(nrow(house_data) * 0.80))
 house_trn = house_data[house_idx, ]
 house_tst = house_data[-house_idx, ]
+house_data = house_data[ ,-c(1, 2, 10, 14)] # Remove irrelevant variables (including id, date, view, sqft_basement)
+house_data$yr_renovated = ifelse(house_data$yr_renovated == 0, 0, 1) #change yr_rennovated to boolean data type
+house_data$yr_renovated = as.factor(house_data$yr_renovated)
+house_data$waterfront = as.factor(house_data$waterfront)
+house_data$zipcode = as.factor(house_data$zipcode)
 ```
 
 We write a function that will return various selection metrics to be used as we progress through our model building.
