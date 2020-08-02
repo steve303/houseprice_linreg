@@ -88,7 +88,7 @@ Try some 3-way interactions
 int_mod = lm(price ~ (. -zipcode ) * (. -zipcode ) * (. -zipcode ) + zipcode, data = house_trn)
 sel_crit(int_mod, house_tst)
 ```
-Three-way appears to be a dead-end (at least without zipcode)
+Three-way appears to be a dead-end (at least without zipcode - we simply don't have the computing power to include zipcode in a 3-way interaction as the number of predictors would be too high)
 
 We add in some polynomial terms with observations from our pairs graphs
 ```{r}
@@ -136,7 +136,11 @@ poly_mod = lm(price ~ (. -zipcode - sqft_above  -sqft_lot15 ) * (. -zipcode - sq
 sel_crit((poly_mod), house_tst)
 ```
 
-
+```{r}
+poly_mod_aic = step(poly_mod, direction = "backward", trace = 0)
+sel_crit(poly_mod_aic, house_tst)
+summary(poly_mod)
+```
 
 
 
