@@ -12,6 +12,7 @@ output:
 ```{r setup, echo = FALSE, message = FALSE, warning = FALSE}
 options(scipen = 1, digits = 4, width = 80)
 library(knitr)
+library(lmtest)
 opts_chunk$set(cache = TRUE, autodep = TRUE)
 ```
 
@@ -206,6 +207,7 @@ qqline(resid(int_mod), col = "dodgerblue", lwd = 2)
 ```
 
 Shapiro-Wilk Test (on first 5000 data points due to limitations of the built-in 'shapiro.test' function)
+
 |                      | poly_int_aic                                          | int_mod                                          |
 |----------------------|-------------------------------------------------------|--------------------------------------------------|
 | Shapiro-Wilk p-value | `r shapiro.test(resid(poly_int_aic)[0:5000])$p.value` | `r shapiro.test(resid(int_mod)[0:5000])$p.value` |
@@ -224,9 +226,6 @@ abline(h = 0, col = "darkorange", lwd = 2)
 ```
 
 Breusch-Pagan Test
-```{r include=FALSE}
-library(lmtest)
-```
 
 |                       | poly_int_aic                     | int_mod                     |
 |-----------------------|----------------------------------|-----------------------------|
