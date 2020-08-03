@@ -70,7 +70,9 @@ sqft_basement_fit = lm(sqft_basement ~ . - price, data = house_data)
 price_fit = lm(price ~ . -sqft_basement, data = house_data)
 cor(resid(sqft_basement_fit), resid(price_fit))
 
-house_data = house_data[ ,-c(11)] # Remove sqft_basement due to high correlation
+# Remove sqft_basement due to high correlation and R^2 = 1
+house_data = house_data[ ,-c(11)] 
+summary(sqft_basement_fit)$r.squared
 ```
 
 ```{r}
@@ -173,12 +175,33 @@ poly_int_mod_red = lm(price ~ (. -zipcode -sqft_above  -sqft_lot15) * (. -zipcod
 sel_crit((poly_int_mod_red), house_tst)
 ```
 
-Finally, we perform backwards AIC to arrive at our final model. 
+If we attempt to add these polynomial terms to the full interaction model (int_mod - with zipcode interactions), we observe that they result in minimal improvement in RMSE.
+```{r}
+full_int_poly = lm(price ~ (.) * (.) + I(lat ^ 2) + I(sqft_lot ^ -1),  data = house_trn)
+sel_crit(full_int_poly, house_tst)
+```
+
+Returning to the reduced interactive polynomial model (without zipcode interactions), we perform backwards AIC to arrive at our final model. 
 ```{r}
 poly_int_aic = step(poly_int_mod_red, direction = "backward", trace = 0)
 sel_crit(poly_int_aic, house_tst)
 ```
 We see that LOOCV_RMSE, adjR2, AIC, and num_p are marginally better while test RMSE is marginally worse. 
+
+Ultimately then, we have two models to choose between, one with a low RMSE, but high number of parameters (int_mod - an interaction model with zipcode interactions) and one with a higher RMSE, but lower number of parameters (poly_int_aic - an interaction and polynomial model without zipcode interactions). 
+```{r}
+sel_crit(poly_int_aic, house_tst)
+sel_crit(int_mod, house_tst)
+```
+
+To compare the two, we also examine their normality and equal variance assumptions. 
+
+
+```{r}
+par(mfrow = c(1, 2))
+
+```
+
 
 ## Results
 
