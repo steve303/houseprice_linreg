@@ -1,0 +1,349 @@
+---
+title: "House Price Modeling in King County, WA"
+author: "Steve Su, Pierson Wodarz"
+date: "7/20/2020"
+output:
+  html_document: 
+    theme: readable
+    toc: yes  
+  pdf_document: default
+---
+
+```{r setup, echo = FALSE, message = FALSE, warning = FALSE}
+options(scipen = 1, digits = 4, width = 80)
+library(knitr)
+library(lmtest)
+opts_chunk$set(cache = TRUE, autodep = TRUE)
+```
+
+## Introduction
+In this study we will investigate sales data for houses in King County, WA (which includes Seattle) sold between May 2014 and May 2015. In particular, we are concerned with the sales prices of these homes and identifying the factors contributing to the sale price such that it becomes possible to predict the price of a given house. 
+
+This is useful to the authors as it can be used for personal decisions when moving to Seattle and purchasing a home. Additionally, it allows the authors to validate or compare to other listed estimates and prices, such as the list price of the home or estimates like the Zillow Zestimate or Redfin Estimate. For example, [Zillow's CEO sold his home for less than 40% of the Zillow estimate](https://www.geekwire.com/2016/zillow-ceo-spencer-rascoff-sold-home-40-less-zestimate-1-75-million/), underscoring the importance of accurate predictions and the potential for improvement in existing systems. Finally, even if the numerical values for the predictors are no longer valid, this study will allow the authors to identify an appropriate form of the model that can be trained on more recent data (house prices may have risen over the previous years, for example).
+
+The data for this study was sourced from [Kaggle](https://www.kaggle.com/swathiachath/kc-housesales-data). The data set contains records of house sales in King County, WA, with a total of 21,597 observations and 21 variables. As our goal is to model the price of houses, we will treat the price variable as our response, and the other variables as potential predictors. These variables include numeric data types such as number of bathrooms/bedrooms, square footage of living space/basement, and number of floors. Additionally, the predictor variables include categorical variables such as zipcode and waterfront property or not.
+
+In this study we will utilize several regression methods for modeling the data. 
+
+## Methods
+### Loading data
+First, we load the data stored in [`kc_house_data.csv`](`kc_house_data.csv`) for the values of the predictors and the response. 
+```{r message=FALSE, warning=FALSE}
+library(readr)
+house_data = read_csv("kc_house_data.csv")
+```
+
+### Data Pre-Processing
+
+Upon receiving the data we removed several columns which we believed were not benefical as predictors. These were the date, id number and views.  Since we wanted the model to be general, not influenced by the specific dates in this data set, we decided to remove the date column.  For obvious reasons we removed id number as this just used for tracking within the data set.  We also removed views because there was a discrepancy with its description.  The variable Views was described as the number of showings the house had, however its value is capped at four.  It's unusual for houses to have no more than four showings.  Because of this confusion we dropped it as one of the predictors. 
+```{r}
+house_data = house_data[ ,-c(1, 2, 10)] # Remove irrelevant variables (including id, date, view)
+```
+
+
+When importing the data set, all variables imported as either a float or integer.  In order to denote which ones we wanted to be categorical we coerced them to be factor variables.  These included zipcode and waterfront.  Lastly, we checked the data set for missing values, but found none.  
+```{r}
+house_data$waterfront = as.factor(house_data$waterfront)
+house_data$zipcode = as.factor(house_data$zipcode)
+```
+
+Before any model building was done we performed an exploratory data analysis (described in detail below) to help summarize the data to provide insights which could be used during the model building phase of the project. By constructing box plots of the predictors we made a decision to convert the yr_renovated predictor from a numeric data type to a boolean.  The original data had 0 if the property was not renovated and year of renovation (e.g. 2015) if the property was renovated.  This meant the data represented both boolean information (renovated/not-renovated) and numeric information (year renovated). It was not valid to use the numeric values, as 0 is not a real year for renovation, so we converted the entire variable to a boolean data type.  
+```{r}
+house_data$yr_renovated = ifelse(house_data$yr_renovated == 0, 0, 1) #change yr_rennovated to boolean data type
+house_data$yr_renovated = as.factor(house_data$yr_renovated)
+```
+
+### Initial Review of Data
+
+A pairs plot was constructed to view the relation of each predictor to the repsonse (price) and observe any obvious relationships.  For example, we noticed that some predictors, such as bedrooms, seemed to have a positive exponential relation with the response. In contrast, sqft_lot seemed to have a negative exponential relation. The lat and long variables appeared to have some form of a polynomial relation.  Lastly, several predictors, such as grade and sqft_living, showed somewhat of a linear relation to the response.  This insight will be helpful when deciding how a predictor might be transformed when constructing the model.  
+```{r}
+pairs(house_data[, 1:7])
+pairs(house_data[ , c(1,8:13)])
+pairs(house_data[ , c(1,14:18)])
+```
+
+
+Additionally, a correlation table of all the predictors was made to get a sense of colinearity.  Some of the higher correlations found, > 0.70, were between the variables sqft_living:sqft_living15 and sqft_lot:sqft_lot15.  The difference between the two is sqft_living is the original square footage before 2015 and sqft_living15 is the square footage after 2015.  If there was an increase after 2015 this meant that there was square footage added to the house due to an expansion.  A majority of the houses do not have increases in square footage so there is high colinearity.  One could argue that the pre 2015 square footage data could be left out since it is already coded in the sqft_living15 variable.  However, we decided to leave it in and see how backward selection might treat them.  While the variable sqft_basement did not have a high correlation number we found that it had a near-zero partial correlation coefficient with the effects of the other variables removed.  We discovered this when an error was flagged when fitting the model using the lm() function.  There was a singularity error with the sqft_basement variable.  To further investigate, we fit a model using sqft_basement as the response with the remaining predictors and got a result of $R^2 = 1$.  This demonstrates that the variation of price that is unexplained by all variables but sqft_basement shows very little correlation with the variation of sqft_basement that is not explained by the other variables. Thus, adding sqft_basement to the model would likely be of little benefit and we removed it. 
+```{r}
+sqft_basement_fit = lm(sqft_basement ~ . - price, data = house_data)
+price_fit = lm(price ~ . -sqft_basement, data = house_data)
+cor(resid(sqft_basement_fit), resid(price_fit))
+summary(sqft_basement_fit)$r.squared
+
+# Remove sqft_basement due to low correlation and R^2 = 1
+house_data = house_data[ ,-c(11)] 
+
+```
+
+```{r}
+round(cor(house_data[, -c(7,12,13)]),2)
+```
+
+
+### Model Building
+
+We randomly split the data into a training data set (80% of the data) and a testing data set (remaining 20%) for use in selecting between different models. 
+```{r}
+set.seed(19940627)
+house_idx = sample(nrow(house_data), as.integer(nrow(house_data) * 0.80))
+house_trn = house_data[house_idx, ]
+house_tst = house_data[-house_idx, ]
+```
+
+We write a function that will return various metrics to be used for selecting/differentiating between models as we progress through our model building.
+```{r}
+sel_crit = function(model, data) {
+  n = nrow(data)
+  LOOCV_RMSE = sqrt(mean((resid(model) / (1 - hatvalues(model))) ^ 2))
+  RMSE =  sqrt((1 / n) * sum((predict(model, newdata = data) - data$price) ^ 2))
+  adjR2 = summary(model)$adj.r.squared
+  AIC = extractAIC(model)[2]
+  num_p = length(coef(model)) - 1
+  data.frame(LOOCV_RMSE = LOOCV_RMSE, RMSE = RMSE, adjR2 = adjR2, AIC = AIC, num_p = num_p)
+}
+```
+
+First, we create an additive model to provide ourselves a baseline from which to improve. Additionally, we perform backwards AIC selection to reduce the number of predictors. 
+```{r}
+add_mod = lm(price ~ ., data = house_trn)
+sel_crit(add_mod, house_tst)
+add_mod_aic = step(add_mod, direction = "backward", trace = 0)
+sel_crit(add_mod_aic, house_tst)
+```
+
+We note that backwards AIC selection has no improvement, and was not particularly useful. But we established a "baseline" RMSE of `r sel_crit(add_mod, house_tst)$RMSE`.
+
+Next, we try a 2-way interactive model. 
+```{r}
+int_mod = lm(price ~ (.) * (.), data = house_trn)
+sel_crit(int_mod, house_tst)
+```
+
+This model has a much lower RMSE (`r sel_crit(int_mod, house_tst)$RMSE`) compared to the additive model. However, the number of parameters is very high.
+
+We note that most of these parameters are from (appropriately) treating zipcode as a factor. We continue by trying to fit a 3-way interaction model, but we must remove zipcode from the interaction (keeping it as a predictor) because our computers cannot process this many predictors.
+```{r}
+int_mod_3way = lm(price ~ (. -zipcode ) * (. -zipcode ) * (. -zipcode ) + zipcode, data = house_trn)
+sel_crit(int_mod_3way, house_tst)
+```
+
+As observed, the criteria for selection are worse in 3-way interaction, so we are likely overfitting the data in this case, so we return to 2-way interaction.
+
+Again we note that for 2-way interaction most of these parameters are from (properly) treating zipcode as a factor. So we investigate what happens if we remove zipcode as an interaction parameter (but still have zipcode as a predictor).
+```{r}
+int_mod_no_zipint = lm(price ~ (. -zipcode) * (. -zipcode) + zipcode, data = house_trn)
+sel_crit((int_mod_no_zipint), house_tst)
+```
+
+We see test RMSE increases (which is undesirable) but we have ~1/6 the number of predictors, which is preferred for understanding and ease-of-consumption of the model.
+
+Additionally, from our correlation table, we observe that there are quite a few parameters that are highly correlated (namely sqft_living with sqft_above/sqft_living15 and sqft_lot with sqft_lot15) so we explore reducing to a single predictor for each correlated set.
+```{r}
+mod_rmv_cor = lm(price ~ (. -zipcode - sqft_above  -sqft_lot15 -sqft_living15) * (. -zipcode - sqft_above  -sqft_lot15 -sqft_living15) + zipcode, data = house_trn)
+sel_crit((mod_rmv_cor), house_tst)
+```
+
+After some experimentation with removal, we choose to remove the variables sqft_above and sqft_lot15 from the interaction for a minimal increase in RMSE but a removal of 19 parameters compared to the int_mod_no_zipint model. 
+```{r}
+mod_rmv_cor = lm(price ~ (. -zipcode - sqft_above  -sqft_lot15 ) * (. -zipcode - sqft_above  -sqft_lot15) + zipcode, data = house_trn)
+sel_crit((mod_rmv_cor), house_tst)
+```
+
+```{r}
+anova(mod_rmv_cor, int_mod_no_zipint)
+```
+
+From the pairs graphs, we can see that some terms appear to have a polynomial, exponential, or logarithmic relationship with price, so we investigate adding all polynomial terms. 
+```{r}
+poly_int_mod = lm(price ~ (. -zipcode -sqft_above  -sqft_lot15) * (. -zipcode -sqft_above  -sqft_lot15) + zipcode + polym(bedrooms, bathrooms, sqft_living, sqft_lot, floors, condition, grade, sqft_above, yr_built, lat, long, sqft_living15, sqft_lot15, degree = 2),  data = house_trn)
+
+sel_crit((poly_int_mod), house_tst)
+```
+
+Since this had no improvement, and vastly overfit the data, we attempt to model specific polynomial terms that appear to have a polynomial, exponential, or logarithmic relationship with price from the pairs graph. Specifically:
+
+- lat: apparent polynomial relationship with price
+- bedrooms: apparent polynomial or exponential relationship with price (more like a gaussian peak)
+- sqft_lot: apparent inverse relationship with price
+- condition: apparent log relationship with price
+```{r}
+poly_int_mod = lm(price ~ (. -zipcode -sqft_above  -sqft_lot15) * (. -zipcode -sqft_above  -sqft_lot15) + zipcode + I(lat ^ 2) +  I(bedrooms ^ 2)  + exp(bedrooms) + I(sqft_lot ^ -1) + log(condition),  data = house_trn)
+sel_crit((poly_int_mod), house_tst)
+```
+
+We observe the single variable t-test for some of these terms and remove those with low coefficients and high p-values. Namely, exp(bedrooms), I(bedrooms ^ 2) and log(condition) and observe the minimal affect on test RMSE, indicating they do not need to be included in the model. 
+```{r}
+poly_int_mod_red = lm(price ~ (. -zipcode -sqft_above  -sqft_lot15) * (. -zipcode -sqft_above  -sqft_lot15) + zipcode + I(lat ^ 2) + I(sqft_lot ^ -1),  data = house_trn)
+sel_crit((poly_int_mod_red), house_tst)
+```
+
+If we attempt to add these polynomial terms to the full interaction model (int_mod - with zipcode interactions), we observe that they result in only minimal improvement in RMSE.
+```{r}
+full_int_poly = lm(price ~ (.) * (.) + I(lat ^ 2) + I(sqft_lot ^ -1),  data = house_trn)
+sel_crit(full_int_poly, house_tst)
+```
+
+Returning to the reduced interactive polynomial model (without zipcode interactions), we perform backwards AIC to arrive at a final model. 
+```{r, eval=FALSE}
+poly_int_aic = step(poly_int_mod_red, direction = "backward", trace = 0)
+sel_crit(poly_int_aic, house_tst)
+```
+
+We see that LOOCV_RMSE, adjR2, AIC, and num_p are marginally better while test RMSE is marginally worse. 
+
+Ultimately then, we have two models to choose between, one with a low RMSE, but high number of parameters (int_mod - an interaction model with zipcode interactions) and one with a higher RMSE, but lower number of parameters (poly_int_aic - an interaction and polynomial model without zipcode interactions). 
+```{r, eval=FALSE}
+sel_crit(poly_int_aic, house_tst)
+sel_crit(int_mod, house_tst)
+```
+
+To compare the two, we examine their normality and equal variance assumptions. 
+
+Normal Q-Q Plots
+```{r echo=FALSE, eval=FALSE}
+par(mfrow = c(1, 2))
+
+qqnorm(resid(poly_int_aic), main = "Normal Q-Q Plot, poly_int_aic", col = "darkgrey")
+qqline(resid(poly_int_aic), col = "dodgerblue", lwd = 2)
+
+qqnorm(resid(int_mod), main = "Normal Q-Q Plot, int_mod", col = "darkgrey")
+qqline(resid(int_mod), col = "dodgerblue", lwd = 2)
+```
+
+
+
+Fitted versus Residuals Plots
+```{r echo=FALSE, eval=FALSE}
+par(mfrow = c(1, 2))
+
+plot(fitted(poly_int_aic), resid(poly_int_aic), col = "grey", pch = 20,
+     xlab = "Fitted", ylab = "Residuals", main = "Data from poly_int_aic")
+abline(h = 0, col = "darkorange", lwd = 2)
+
+plot(fitted(int_mod), resid(int_mod), col = "grey", pch = 20,
+     xlab = "Fitted", ylab = "Residuals", main = "Data from int_mod")
+abline(h = 0, col = "darkorange", lwd = 2)
+```
+
+
+
+
+Below are three functions to 1) calc pvalues for bptest and shapiro, 2) plot qqplot, 3) plot resid/fit.  Each function takes a list of models
+
+```{r}
+calcNorm = function(models) {
+  len = length(models)
+  shap_vec = rep(0, len)
+  bp_vec   = rep(0, len)
+  name_vec = rep(0, len)
+  for(i in 1:len) {
+    shap_vec[i] = bptest(models[[i]])$p.value
+    bp_vec[i] = shapiro.test(resid(models[[i]])[0:5000] )$p.value
+    name_vec[i] = paste('model', toString(i))
+  }
+  df = data.frame(shapiro =  shap_vec, bptest = bp_vec)
+  rownames(df) = name_vec
+  df
+}
+```
+
+```{r}
+plotqq = function(models) {
+  par(mfrow = c(1, 3))
+  len = length(models)
+  for (i in 1:len) {
+    qqnorm(resid(models[[i]]), main = "Normal Q-Q Plot", col = "darkgrey")
+    qqline(resid(models[[i]]), col = "dodgerblue", lwd = 2)
+  }
+}
+```
+
+```{r}
+plotRes = function(models) {
+  par(mfrow = c(1, 3))
+  len = length(models)
+  
+  for (i in 1:len) {
+    plot(fitted(models[[i]]), resid(models[[i]]), col = "grey", pch = 20,
+      xlab = "Fitted", ylab = "Residuals", main = "fit vs resid")
+    abline(h = 0, col = "darkorange", lwd = 2)
+  }
+}
+```
+
+```{r}
+#original
+poly_int_mod = lm(price ~ (. -zipcode -sqft_above  -sqft_lot15) * (. -zipcode -sqft_above  -sqft_lot15) + zipcode + polym(bedrooms, bathrooms, sqft_living, sqft_lot, floors, condition, grade, sqft_above, yr_built, lat, long, sqft_living15, sqft_lot15, degree = 2),  data = house_trn)
+#log(price)
+poly_int_mod_log = lm(log(price) ~ (. -zipcode -sqft_above  -sqft_lot15) * (. -zipcode -sqft_above  -sqft_lot15) + zipcode + polym(bedrooms, bathrooms, sqft_living, sqft_lot, floors, condition, grade, sqft_above, yr_built, lat, long, sqft_living15, sqft_lot15, degree = 2),  data = house_trn)
+#log(price) + remove high cookdist obs
+poly_int_mod_log_cook = lm(log(price) ~ (. -zipcode -sqft_above  -sqft_lot15) * (. -zipcode -sqft_above  -sqft_lot15) + zipcode + polym(bedrooms, bathrooms, sqft_living, sqft_lot, floors, condition, grade, sqft_above, yr_built, lat, long, sqft_living15, sqft_lot15, degree = 2),  data = house_trn, subset = cooks.distance(poly_int_mod) < 4/nrow(house_trn))
+
+```
+
+```{r}
+models = list(poly_int_mod, poly_int_mod_log, poly_int_mod_log_cook)
+calcNorm(models)
+plotqq(models)
+plotRes(models)
+```
+
+```{r}
+poly_int_mod2 = lm(price ~ (. -zipcode -sqft_above  -sqft_lot15) * (. -zipcode -sqft_above  -sqft_lot15) + zipcode + I(lat ^ 2) +  I(bedrooms ^ 2)  + exp(bedrooms) + I(sqft_lot ^ -1) + log(condition),  data = house_trn)
+
+
+poly_int_mod2_log = lm(log(price) ~ (. -zipcode -sqft_above  -sqft_lot15) * (. -zipcode -sqft_above  -sqft_lot15) + zipcode + I(lat ^ 2) +  I(bedrooms ^ 2)  + exp(bedrooms) + I(sqft_lot ^ -1) + log(condition),  data = house_trn)
+
+poly_int_mod2_log_cook = lm(log(price) ~ (. -zipcode -sqft_above  -sqft_lot15) * (. -zipcode -sqft_above  -sqft_lot15) + zipcode + I(lat ^ 2) +  I(bedrooms ^ 2)  + exp(bedrooms) + I(sqft_lot ^ -1) + log(condition),  data = house_trn, subset = cooks.distance(poly_int_mod2_log) < 4/nrow(house_trn))
+```
+
+
+```{r}
+models = list(poly_int_mod2, poly_int_mod2_log, poly_int_mod2_log_cook)
+calcNorm(models)
+plotqq(models)
+plotRes(models)
+```
+
+```{r}
+int_mod_no_zipint = lm(price ~ (. -zipcode) * (. -zipcode) + zipcode, data = house_trn)
+int_mod_no_zipint_log = lm(log(price) ~ (. -zipcode) * (. -zipcode) + zipcode, data = house_trn)
+int_mod_no_zipint_log_cook = lm(log(price) ~ (. -zipcode) * (. -zipcode) + zipcode, data = house_trn, subset = cooks.distance(int_mod_no_zipint_log) < 4/nrow(house_trn))
+
+```
+
+```{r}
+models = list(int_mod_no_zipint, int_mod_no_zipint_log, int_mod_no_zipint_log_cook)
+calcNorm(models)
+plotqq(models)
+plotRes(models)
+```
+```{r}
+add_mod = lm(price ~ ., data = house_trn)
+add_mod_log = lm(log(price) ~ ., data = house_trn)
+add_mod_log_cook = lm(log(price) ~ ., data = house_trn, subset = cooks.distance(add_mod_log) < 4/nrow(house_trn))
+```
+
+```{r}
+models = list(add_mod, add_mod_log, add_mod_log_cook)
+calcNorm(models)
+plotqq(models)
+plotRes(models)
+
+```
+
+
+
+
+```{r}
+#filt = rep(0, nrow(house_trn))
+#filt = ifelse(house_trn$price > 200000 & house_trn$price < 500000, TRUE, FALSE)
+
+#poly_int_mod3 = lm(price ~ (. -zipcode -sqft_above  -sqft_lot15) * (. -zipcode -sqft_above  -sqft_lot15) + zipcode + polym(bedrooms, bathrooms, sqft_living, sqft_lot, floors, condition, grade, sqft_above, yr_built, lat, long, sqft_living15, sqft_lot15, degree = 2),  data = house_trn, subset = filt)
+
+```
+## Results
+
+## Discussion
+
+## Appendix
