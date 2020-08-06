@@ -140,7 +140,7 @@ sel_crit(add_mod_aic, house_tst)
 We note that backwards AIC selection has no improvement, and was not particularly useful. But we established a "baseline" RMSE of `r sel_crit(add_mod, house_tst)$RMSE`.
 
 Next, we try a 2-way interactive model. 
-```{r}
+```{r, warning=FALSE}
 int_mod = lm(price ~ (.) * (.), data = house_trn)
 sel_crit(int_mod, house_tst)
 ```
@@ -148,7 +148,7 @@ sel_crit(int_mod, house_tst)
 This model has a much lower RMSE (`r sel_crit(int_mod, house_tst)$RMSE`) compared to the additive model. However, the number of parameters is very high.
 
 We note that most of these parameters are from (appropriately) treating zipcode as a factor. We continue by trying to fit a 3-way interaction model, but we must remove zipcode from the interaction (keeping it as a predictor) because our computers cannot process this many predictors.
-```{r}
+```{r, warning=FALSE}
 int_mod_3way = lm(price ~ (. -zipcode ) * (. -zipcode ) * (. -zipcode ) + zipcode, data = house_trn)
 sel_crit(int_mod_3way, house_tst)
 ```
@@ -177,7 +177,7 @@ sel_crit((mod_rmv_cor), house_tst)
 
 
 From the pairs graphs, we can see that some terms appear to have a polynomial, exponential, or logarithmic relationship with price, so we investigate adding all polynomial terms. 
-```{r}
+```{r, warning=FALSE}
 poly_int_mod = lm(price ~ (. -zipcode -sqft_above  -sqft_lot15) * (. -zipcode -sqft_above  -sqft_lot15) + zipcode + polym(bedrooms, bathrooms, sqft_living, sqft_lot, floors, condition, grade, sqft_above, yr_built, lat, long, sqft_living15, sqft_lot15, degree = 2),  data = house_trn)
 sel_crit((poly_int_mod), house_tst)
 ```
@@ -200,7 +200,7 @@ sel_crit((poly_int_mod_red), house_tst)
 ```
 
 If we attempt to add these polynomial terms to the full interaction model (int_mod - with zipcode interactions), we observe that they result in only minimal improvement in RMSE.
-```{r}
+```{r, warning=FALSE}
 full_int_poly = lm(price ~ (.) * (.) + I(lat ^ 2) + I(sqft_lot ^ -1),  data = house_trn)
 sel_crit(full_int_poly, house_tst)
 ```
@@ -221,39 +221,25 @@ sel_crit(int_mod, house_tst)
 
 ## Results
 
-
-```{r, warning=FALSE, eval=TRUE}
-m = list(add_mod, int_mod, int_mod_no_zipint, poly_int_mod_red, poly_int_aic)
-
-name = c('add_mod', 'int_mod', 'int_mod_no_zipint', 'poly_int_mod_red',  'poly_int_aic')
-
-d = calcStats(m, house_tst, name)
-kable(d)
-```
-
-
-The table above shows the test RMSE, adjusted Rsqaured, AIC, and the number of predictors of selected models which steered the progression of our model selection.  We noticed right away that the model with 2 way interactions of all the terms, int_mod, has a large benefit to the performance.  There was a considerable reduction of `r d[1,1]- d[2,1]` or `r (d[1,1]- d[2,1])/d[1,1]`  percent in test RMSE compared to the baseline, mod_add.  Recall, the baseline model was the additive model of all the terms.  However there are many terms, 1224, making interpretation difficult.  We made attempts to reduce the model by leaving out the interaction of all the zip code terms, model int_mod_no_zipint.  This increased the the test RMSE by `r d[3,1] - d[2,1]` but helped to reduce the number of predictor from 1224 to 189.  To try to bring down the test RMSE we tranformed specific predictors using polynomial and log tranforms in accordance to their pairs plots with price (response).  This was the fourth model named poly_int_mod_red.  There was little change in test RMSE, less than 1%.  Lastly, we performed backwards step selection on this model to see if anything could be gained, 5th model poly_int_aic.  The test RMSE was virtually the same but the number of predictiors was reduced from 189 to 142.  The two models we will focus on are the int_mod and poly_int_aic.  ...    
-
-
-To compare the two, we examine their normality and equal variance assumptions. 
 ```{r include=FALSE, warning=FALSE}
+# function to plot qqplot, input: model= a list of models, name=list of model names as a string so it can be labeled in title of plot 
 plotqq = function(models, name) {
   len = length(models)
   
   par(mfrow = c(1, len))
   for (i in 1:len) {
-    qqnorm(resid(models[[i]]), main = paste("Normal Q-Q Plot:", name[i]), col = "darkgrey")
+    qqnorm(resid(models[[i]]), main = paste("Q-Q Plot:", name[i]), col = "darkgrey")
     qqline(resid(models[[i]]), col = "dodgerblue", lwd = 2)
   }
 }
-
+# function to plot residuals, input: model= a list of models, name=list of model names as a string so it can be labeled in title of plot 
 plotRes = function(models, name) {
   len = length(models)
   
   par(mfrow = c(1, len))
   for (i in 1:len) {
     plot(fitted(models[[i]]), resid(models[[i]]), col = "grey", pch = 20,
-      xlab = "Fitted", ylab = "Residuals", main = paste("fit vs resid:", name[i]))
+      xlab = "Fitted", ylab = "Residuals", main = paste("Fit vs Resid:", name[i]))
     abline(h = 0, col = "darkorange", lwd = 2)
   }
 }
@@ -277,72 +263,89 @@ calcNorm = function(models, name) {
 }
 ```
 
+**Table of Statistical Metrics of Selected Models**
+```{r, warning=FALSE, eval=TRUE, echo=FALSE}
+m = list(add_mod, int_mod, int_mod_no_zipint, poly_int_mod_red, poly_int_aic)
+
+name = c('add_mod', 'int_mod', 'int_mod_no_zipint', 'poly_int_mod_red',  'poly_int_aic')
+
+d = calcStats(m, house_tst, name)
+kable(d)
+```
 
 
-Normal Q-Q Plots/fitted vs residual plots (poly_int_aic & int_mod):
+The table above shows the test RMSE, adjusted Rsqaured, AIC, and the number of predictors of selected models which steered the progression of our model selection.  The first model listed, add_mod, is the baseline model and is an additive model of all the predictors.  We noticed right away that the 2nd model, int_mod, which consists of a 2 way interaction of all the terms has a large benefit to the performance.  There was a considerable reduction of `r d[1,1]- d[2,1]` or `r ((d[1,1]- d[2,1])/d[1,1])*100` percent in test RMSE compared to the baseline.  However there are many terms, 1224, making interpretation difficult.  We made attempts to reduce the model by leaving out the interaction of all the zip code terms (seventy in total).  This model is named, int_mod_no_zipint.  This increased the test RMSE by `r d[3,1] - d[2,1]` but helped to reduce the number of predictor from 1224 to 189.  To try to bring down the test RMSE we tranformed specific predictors using polynomial and log tranforms in accordance to their pairs plots with repsect to price (response).  This was the fourth model named poly_int_mod_red.  There was little change in test RMSE with this model, less than 1%.  Lastly, we performed backwards step selection on this model to see if the model could be further optimized. This model was named, poly_int_aic.  The test RMSE was virtually the same but the number of predictiors was reduced from 189 to 142.    
+
+
+**QQplots and Fitted vs Residual plots: poly_int_aic, int_mod**
 ```{r echo=FALSE}
 plotqq(list(poly_int_aic, int_mod), list('poly_int_aic', 'int_mod'))
 plotRes(list(poly_int_aic, int_mod), list('poly_int_aic', 'int_mod'))
 ```
 
-We see that neither model follows the normality or equal variance assumptions. We attempt response transformations in the hope of identifying a model that follows the LINE assumptions more closely. 
 
-log(price) transformation for poly_int_mod_red and int_mod models:
-```{r}
+**Table of p-values Shapiro/Bptest of Select Models**
+```{r, echo=FALSE}
+models5 = list(add_mod, int_mod, int_mod_no_zipint, poly_int_mod_red, poly_int_aic)
+names5 = list('add_mod', 'int_mod', 'int_mod_no_zipint', 'poly_int_mod_red', 'poly_int_aic')
+results1 = calcNorm(models5, names5)
+```
+
+```{r,echo=FALSE}
+kable( format(results1, scientific=TRUE) )
+```
+
+From the plot above, we see that neither model (poly_int_aic and int_mod) follows the normality or equal variance  of the LINE assumptions. The Q-Q plot has obvious deviations at its tails and the residual plots appear to diverge as the fitted value increases.  In fact all of our selected models do not satisfy the LINE asumptions.  The p-values of the Breusch Pagan test and the Shapiro test are presented above and are extremely low. 
+
+
+**QQplots and Fitted vs Residual plots: using log(price), poly_int_aic, int_mod**
+```{r, echo=FALSE}
 poly_int_mod_red_log = lm(log(price) ~ (. -zipcode -sqft_above  -sqft_lot15) * (. -zipcode -sqft_above  -sqft_lot15) + zipcode + I(lat ^ 2) + I(sqft_lot ^ -1),  data = house_trn)
 int_mod_log = lm(log(price) ~ (.) * (.), data = house_trn)
 plotqq(list(poly_int_mod_red_log, int_mod_log), list('poly_int_mod_red_log', 'int_mod_log'))
 plotRes(list(poly_int_mod_red_log, int_mod_log), list('poly_int_mod_red_log', 'int_mod_log'))
 ```
 
-```{r}
-results = calcNorm(list(poly_int_aic, int_mod, poly_int_mod_red_log, int_mod_log), list('poly_int_aic', 'int_mod', 'poly_int_mod_red_log', 'int_mod_log'))
-kable(results)
+
+**Table of p-values Shapiro/Bptest before and after log transformation of response**
+```{r, echo=FALSE}
+results2 = calcNorm(list(poly_int_mod_red, int_mod, poly_int_mod_red_log, int_mod_log), list('poly_int_mod_red', 'int_mod', 'poly_int_mod_red_log', 'int_mod_log'))
+kable(format(results2, scientific=TRUE))
 ```
 
-The log transformation of the response variable has some improvement in terms of the p-values from the BreuschPagan and Shapiro tests but they are still tremendously low.  
+In an attempt to meet the LINE assumptions, we performed a log transformation of the response variable.  It showed some improvement in terms of increasing the p-values on the BreuschPagan and Shapiro tests (shown above) but they are still tremendously low.  Upon visual inspection of the plots above, the Q-Q plot does not appear to have any improvement but the residuals plot looks slightly more random.  In general, log transformation of the response variable helped to increase the Bptest p-value from 1e-50 to 1e-30 if this can be considered an improvement with such a low p-value.        
 
-```{r}
-results
-```
+We attempted to achieve the LINE assumptions by additonal log and polynomial tranformations on the predictors but did not succeed.  As a result we wanted to know if it were possible to achieve a LINE model if we removed all the high cook distance observations where > 4/n.  This exercise was just to see if it was possible and not to generate a model for use.  
 
-
-
-
-|                       | poly_int_aic_log                                                                                | int_mod_log                                                                            |
-|-----------------------|-------------------------------------------------------------------------------------------------|----------------------------------------------------------------------------------------|
-| RMSE                  | `r sqrt(mean((house_tst$price - exp(predict(poly_int_mod_red_log, newdata = house_tst))) ^ 2))` | `r sqrt(mean((house_tst$price - exp(predict(int_mod_log, newdata = house_tst))) ^ 2))` |
-
-We see that RMSE improves only for the poly_int_aic_log model with a response transformation. However, the normality and equal variance assumptions still appear to not hold. 
-
-
-
-
-We attempted to achieve the LINE assumptions on several other models but did not succeed.  As a result we wanted to know if it were possible to achieve a LINE model if we removed all the high cook distance observations where > 4/n.  This exercise was just to see if it was possible and not to generate a model for use.  
-
-```{r}
+```{r, echo=FALSE}
 poly_int_mod_red_log_cook = lm(log(price) ~ (. -zipcode -sqft_above  -sqft_lot15) * (. -zipcode -sqft_above  -sqft_lot15) + zipcode + I(lat ^ 2) + I(sqft_lot ^ -1),  data = house_trn, subset = cooks.distance(poly_int_mod_red_log) < 4/nrow(house_trn))
 int_mod_log_cook = lm(log(price) ~ (.) * (.), data = house_trn, subset = cooks.distance(int_mod_log) < 4/nrow(house_trn))
 ```
 
-```{r}
+**QQplots and Fitted vs Residual plots: high Cook distance removed (exercise only)**
+```{r, echo=FALSE}
 plotqq(list(poly_int_mod_red_log_cook, int_mod_log_cook), list('poly_int_mod_red_log_cook', 'int_mod_log_cook'))
 plotRes(list(poly_int_mod_red_log_cook, int_mod_log_cook), list('poly_int_mod_red_log_cook', 'int_mod_log_cook'))
 ```
 
-
-```{r}
-results2 = calcNorm(list(poly_int_mod_red_log_cook, int_mod_log_cook), list('poly_int_mod_red_log_cook', 'int_mod_log_cook'))
-kable(results2)
+**Table of p-values Shapiro/Bptest with high Cook distance removed (exercise only)**
+```{r, echo=FALSE}
+results3 = calcNorm(list(poly_int_mod_red_log_cook, int_mod_log_cook), list('poly_int_mod_red_log_cook', 'int_mod_log_cook'))
+kable(format(results3, scientific=TRUE))
 ```
 
-```{r}
-results2
-```
+Visually, there is quite an improvement with the Q-Qplot and noticeable improvement with the fitted vs residuals plot.  However the p-values are still very low indicating that they are not passing the assumptions of normality of the residuals and constant variance.  Even with throwing out all the high Cook distance observations we cannot achieve the LINE assumptions.   
 
-Visually, there is quite an improvement with the qqplot and noticeable improvement with the fitted vs residuals plot.  However the p-values are still very low indicating that they are not passing the assumptions of normality of the residuals and constant variance.  Even with throwing out all the high Cook distance observations we cannot achieve the LINE assumptions.   
 
 
 ## Discussion
+
+if i were to make a sweeping statement about trying to interpret this model, there seems to be a lot of interactions tied to the bedroom, bathroom and sqftliving.  How's that for our interpetation?  of course zip code by itself is important, most are significant.  we should put this long summary in the appendix.  I thought we should not bother with the log transform price models as our chosen model for simiplicity but it's up to you. 
+```{r}
+summary(poly_int_aic)
+
+```
+
+
 
 ## Appendix
