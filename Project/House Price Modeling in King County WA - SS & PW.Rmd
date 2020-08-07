@@ -17,13 +17,17 @@ opts_chunk$set(cache = TRUE, autodep = TRUE)
 ```
 
 ## Introduction
-In this study we will investigate sales data for houses in King County, WA (which includes Seattle) sold between May 2014 and May 2015. In particular, we are concerned with the sales prices of these homes and identifying the factors contributing to the sale price such that it becomes possible to predict the price of a given house. 
+In this study we will investigate sales data for houses in King County, WA (which includes Seattle) sold between May 2014 and May 2015. In particular, we are concerned with the sales prices of these homes and identifying the factors contributing to the sale price such that it becomes possible to predict the price of a given house within the framework of an interpretable model. 
 
-This is useful to the authors as it can be used for personal decisions when moving to Seattle and purchasing a home. Additionally, it allows the authors to validate or compare to other listed estimates and prices, such as the list price of the home or estimates like the Zillow Zestimate or Redfin Estimate. For example, [Zillow's CEO sold his home for less than 40% of the Zillow estimate](https://www.geekwire.com/2016/zillow-ceo-spencer-rascoff-sold-home-40-less-zestimate-1-75-million/), underscoring the importance of accurate predictions and the potential for improvement in existing systems. Finally, even if the numerical values for the predictors are no longer valid, this study will allow the authors to identify an appropriate form of the model that can be trained on more recent data (house prices may have risen over the previous years, for example).
+This is useful to the authors as it can be used for personal decisions when moving to Seattle and purchasing a home. Additionally, it allows the authors to validate or compare to other listed estimates and prices, such as the list price of the home or estimates like the Zillow Zestimate or Redfin Estimate. For example, [Zillow's CEO sold his home for less than 40% of the Zillow estimate](https://www.geekwire.com/2016/zillow-ceo-spencer-rascoff-sold-home-40-less-zestimate-1-75-million/), underscoring the importance of accurate predictions and the potential for improvement in existing systems. Finally, even if the numerical values for the predictors are no longer valid, this study will allow the authors to identify an appropriate form of the model that can be trained on more recent data (house prices may have risen over the previous years, for example) and interprate the relative influence of various predictors.
 
 The data for this study was sourced from [Kaggle](https://www.kaggle.com/swathiachath/kc-housesales-data). The data set contains records of house sales in King County, WA, with a total of 21,597 observations and 21 variables. As our goal is to model the price of houses, we will treat the price variable as our response, and the other variables as potential predictors. These variables include numeric data types such as number of bathrooms/bedrooms, square footage of living space/basement, and number of floors. Additionally, the predictor variables include categorical variables such as zipcode and waterfront property or not.
 
-In this study we will utilize several regression methods for modeling the data. 
+In this study we will utilize several regression methods for modeling the data, including:
+
+- Additive Regression
+- Interactions
+- Transformations
 
 ## Methods
 ### Loading data
@@ -63,7 +67,7 @@ pairs(house_data[ , c(1,14:18)])
 ```
 
 
-Additionally, a correlation table of all the predictors was made to get a sense of colinearity.  Some of the higher correlations found, > 0.70, were between the variables sqft_living:sqft_living15 and sqft_lot:sqft_lot15.  The difference between the two is sqft_living is the original square footage before 2015 and sqft_living15 is the square footage after 2015.  If there was an increase after 2015 this meant that there was square footage added to the house due to an expansion.  A majority of the houses do not have increases in square footage so there is high colinearity.  One could argue that the pre 2015 square footage data could be left out since it is already coded in the sqft_living15 variable.  However, we decided to leave it in and see how backward selection might treat them.  While the variable sqft_basement did not have a high correlation number we found that it had a near-zero partial correlation coefficient with the effects of the other variables removed.  We discovered this when an error was flagged when fitting the model using the lm() function.  There was a singularity error with the sqft_basement variable.  To further investigate, we fit a model using sqft_basement as the response with the remaining predictors and got a result of $R^2 = 1$.  This demonstrates that the variation of price that is unexplained by all variables but sqft_basement shows very little correlation with the variation of sqft_basement that is not explained by the other variables. Thus, adding sqft_basement to the model would likely be of little benefit and we removed it. 
+Additionally, a correlation table (Appendix Fig. 1) of all the predictors was made to get a sense of colinearity.  Some of the higher correlations found, > 0.70, were between the variables sqft_living:sqft_living15 and sqft_lot:sqft_lot15.  The difference between the two is sqft_living is the original square footage before 2015 and sqft_living15 is the square footage after 2015.  If there was an increase after 2015 this meant that there was square footage added to the house due to an expansion.  A majority of the houses do not have increases in square footage so there is high colinearity.  One could argue that the pre 2015 square footage data could be left out since it is already coded in the sqft_living15 variable.  However, we decided to leave it in and see how backward selection might treat them.  While the variable sqft_basement did not have a high correlation number we found that it had a near-zero partial correlation coefficient with the effects of the other variables removed.  We discovered this when an error was flagged when fitting the model using the lm() function.  There was a singularity error with the sqft_basement variable.  To further investigate, we fit a model using sqft_basement as the response with the remaining predictors and got a result of $R^2 = 1$.  This demonstrates that the variation of price that is unexplained by all variables but sqft_basement shows very little correlation with the variation of sqft_basement that is not explained by the other variables. Thus, adding sqft_basement to the model would likely be of little benefit and we removed it. 
 ```{r}
 sqft_basement_fit = lm(sqft_basement ~ . - price, data = house_data)
 price_fit = lm(price ~ . -sqft_basement, data = house_data)
@@ -72,11 +76,6 @@ summary(sqft_basement_fit)$r.squared
 
 # Remove sqft_basement due to low correlation and R^2 = 1
 house_data = house_data[ ,-c(11)] 
-
-```
-
-```{r}
-round(cor(house_data[, -c(7,12,13)]),2)
 ```
 
 
@@ -339,13 +338,31 @@ Visually, there is quite an improvement with the Q-Qplot and noticeable improvem
 
 
 ## Discussion
+As our goal was to identify a model that was useful in the context of understanding which predictors have an influence on price and how large such an influence was, we took into consideration both RMSE and number of predictors when considering which model to choose. 
 
-if i were to make a sweeping statement about trying to interpret this model, there seems to be a lot of interactions tied to the bedroom, bathroom and sqftliving.  How's that for our interpetation?  of course zip code by itself is important, most are significant.  we should put this long summary in the appendix.  I thought we should not bother with the log transform price models as our chosen model for simiplicity but it's up to you. 
-```{r}
-summary(poly_int_aic)
+Ultimately we arrived at the poly_int_aic model because of the model's test RMSE relative to the other models (the only other model with a significantly better test RMSE was the full interaction model) and its low number of predictors (nearly 6 times fewer than the full interaction model). 
 
-```
+With 142 coefficients the model is somewhat digestible (see Appendix Fig. 2), especially so when considering that a full 69 of the coefficients are due to the zipcode factor. This leaves a reasonable ~70 coefficients composed of the variables and their interactions. This is more understandable than 1,300 variables and it becomes possible to observe the coefficients for outliers or those that have a significant impact on price.
 
+For example, we can observe that the number of bedrooms and latitude have a positive impact on price or that the longitude had a negative impact on price. Additionally, we can see which zipcodes are associated with an increase in price or a decrease in price, meaning we could identify zipcodes in which we expect the average house price to be higher. 
 
+The model diagnostics validated some of our observations and decisions. For example, the sqft_lot variable had a small coefficient (not a big impact on price) with a high p-value, whereas the added polynomial (sqft_lot ^ -1) had a large coefficient and a small p-value, justifying its inclusion. 
+
+The stepwise reduction allowed us to determine which interactions were significant and the interaction that some variables had on others. For example, the floors variable did not have a significant moderating relationship with many of the other variables but a waterfront lot resulted in a large increase in effect for the interaction variables.
+
+However, there were some problems with this model. Namely, as shown in the Results section, this model did not adhere to the LINE assumptions. This is understandable as we wouldn't necessarily expect house prices to adhere to such assumptions. We might expect that there is more variance in price for homes with a higher bedroom and bathroom count than for simple 1-bed 1-bath homes, or that the distributions change at each of these combinations. 
+
+The most impactful problem is the high RMSE. Namely, given the mean and median house price of `r mean(house_data$price)` and `r median(house_data$price)` respectively, an RMSE of `r sel_crit(poly_int_aic)$RMSE` disqualifies this model from being used as an effective predictor. This level of error makes the model useless for houses in the price range the authors could hope to afford (the lower end of the market), though perhaps more useful to those looking at the higher market where such error is acceptable. 
+
+SUmmarizing, we find that the model provides guidance on the effect of certain variables on housing prices, but is not useful to predict prices due to a high level of error (which may be present in the data itself). 
 
 ## Appendix
+Fig. 1 - Predictor Correlations
+```{r}
+round(cor(house_data[, -c(7,12,13)]),2)
+```
+
+Fig. 2 - poly_int_aic Coefficients
+```{r}
+summary(poly_int_aic)$coef
+```
